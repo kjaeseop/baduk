@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>온라인 13×13 바둑</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 10px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .room-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .room-code {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+            text-align: center;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            margin: 10px 0;
+            letter-spacing: 3px;
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .turn-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .stone-preview {
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        
+        .black-stone { background: #000; }
+        .white-stone { background: #fff; border: 2px solid #333; }
+        
+        .captures {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .player-info {
+            font-size: 14px;
+            color: #666;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        
+        .board-container {
+            position: relative;
+            width: 100%;
+            padding-bottom: 100%;
+            background: #dcb35c;
+            border-radius: 10px;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+            touch-action: none;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .primary-btn {
+            background: #667eea;
+            color: white;
+        }
+        
+        .primary-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+        
+        .secondary-btn {
+            background: #48bb78;
+            color: white;
+        }
+        
+        .secondary-btn:hover {
+            background: #38a169;
+            transform: translateY(-2px);
+        }
+        
+        .danger-btn {
+            background: #f56565;
+            color: white;
+        }
+        
+        .danger-btn:hover {
+            background: #e53e3e;
+            transform: translateY(-2px);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .status {
+            text-align: center;
+            padding: 10px;
+            background: #fff3cd;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎲 온라인 13×13 바둑</h1>
+        </div>
+        
+        <!-- 방 생성/입장 화면 -->
+        <div id="lobbyScreen">
+            <div class="room-section">
+                <h3 style="margin-bottom: 10px;">새 게임 시작</h3>
+                <button class="primary-btn" onclick="createRoom()">방 만들기</button>
+            </div>
+            
+            <div class="room-section">
+                <h3 style="margin-bottom: 10px;">게임 참가</h3>
+                <div class="input-group">
+                    <input type="text" id="roomCodeInput" placeholder="방 코드 입력" maxlength="6">
+                    <button class="secondary-btn" onclick="joinRoom()">입장</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 게임 화면 -->
+        <div id="gameScreen" class="hidden">
+            <div class="room-section">
+                <div style="text-align: center; margin-bottom: 10px;">방 코드</div>
+                <div class="room-code" id="currentRoomCode">------</div>
+                <div class="player-info" id="playerInfo">대기 중...</div>
+                <div class="status" id="gameStatus">상대방을 기다리는 중...</div>
+            </div>
+            
+            <div class="info">
+                <div class="turn-indicator">
+                    <span>현재 차례:</span>
+                    <div class="stone-preview black-stone" id="turnStone"></div>
+                    <span id="turnText">흑</span>
+                </div>
+                <div class="captures">
+                    <div>흑 잡은 돌: <span id="blackCaptures">0</span></div>
+                    <div>백 잡은 돌: <span id="whiteCaptures">0</span></div>
+                </div>
+            </div>
+            
+            <div class="board-container">
+                <canvas id="board"></canvas>
+            </div>
+            
+            <div class="controls">
+                <button class="secondary-btn" onclick="pass()" id="passBtn">패스</button>
+                <button class="danger-btn" onclick="leaveRoom()">나가기</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getDatabase, ref, set, onValue, update, remove, get } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+
+        // Firebase 설정
+        const firebaseConfig = {
+            apiKey: "AIzaSyA9z8ppMRMfl_Fa9_h8KgMYDkQwitMi73k",
+            authDomain: "baduk-fcbe7.firebaseapp.com",
+            databaseURL: "https://baduk-fcbe7-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "baduk-fcbe7",
+            storageBucket: "baduk-fcbe7.firebasestorage.app",
+            messagingSenderId: "1068251429233",
+            appId: "1:1068251429233:web:f9aac06fd493ee81631ed0"
+        };
+
+        // Firebase 초기화
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        const BOARD_SIZE = 13;
+        let currentRoomCode = null;
+        let myPlayerId = 'player_' + Math.random().toString(36).substr(2, 9);
+        let myColor = null;
+        let gameData = null;
+
+        const canvas = document.getElementById('board');
+        const ctx = canvas.getContext('2d');
+
+        // 방 생성
+        window.createRoom = async function() {
+            const roomCode = Math.random().toString(36).substr(2, 6).toUpperCase();
+            currentRoomCode = roomCode;
+            myColor = 1; // 방장은 흑돌
+            
+            const initialGameState = {
+                board: Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(0)),
+                currentPlayer: 1,
+                blackCaptures: 0,
+                whiteCaptures: 0,
+                players: {
+                    black: myPlayerId,
+                    white: null
+                },
+                status: 'waiting',
+                passCount: 0
+            };
+            
+            await set(ref(database, 'games/' + roomCode), initialGameState);
+            showGameScreen();
+            listenToGame();
+        };
+
+        // 방 입장
+        window.joinRoom = async function() {
+            const roomCode = document.getElementById('roomCodeInput').value.toUpperCase();
+            if (!roomCode || roomCode.length !== 6) {
+                alert('올바른 방 코드를 입력하세요 (6자리)');
+                return;
+            }
+            
+            const gameRef = ref(database, 'games/' + roomCode);
+            const snapshot = await get(gameRef);
+            
+            if (!snapshot.exists()) {
+                alert('존재하지 않는 방입니다.');
+                return;
+            }
+            
+            const game = snapshot.val();
+            if (game.players.white) {
+                alert('이미 게임이 진행 중입니다.');
+                return;
+            }
+            
+            currentRoomCode = roomCode;
+            myColor = 2; // 참가자는 백돌
+            
+            await update(ref(database, 'games/' + roomCode), {
+                'players/white': myPlayerId,
+                'status': 'playing'
+            });
+            
+            showGameScreen();
+            listenToGame();
+        };
+
+        // 게임 상태 리스닝
+        function listenToGame() {
+            const gameRef = ref(database, 'games/' + currentRoomCode);
+            onValue(gameRef, (snapshot) => {
+                if (!snapshot.exists()) {
+                    alert('게임이 종료되었습니다.');
+                    leaveRoom();
+                    return;
+                }
+                
+                gameData = snapshot.val();
+                updateGameUI();
+            });
+        }
+
+        // UI 업데이트
+        function updateGameUI() {
+            document.getElementById('currentRoomCode').textContent = currentRoomCode;
+            
+            const myColorText = myColor === 1 ? '흑돌' : '백돌';
+            document.getElementById('playerInfo').textContent = `당신: ${myColorText}`;
+            
+            if (gameData.status === 'waiting') {
+                document.getElementById('gameStatus').textContent = '상대방을 기다리는 중...';
+                document.getElementById('passBtn').disabled = true;
+            } else {
+                const isMyTurn = gameData.currentPlayer === myColor;
+                document.getElementById('gameStatus').textContent = isMyTurn ? '당신의 차례입니다!' : '상대방의 차례...';
+                document.getElementById('passBtn').disabled = !isMyTurn;
+            }
+            
+            const turnStone = document.getElementById('turnStone');
+            const turnText = document.getElementById('turnText');
+            
+            if (gameData.currentPlayer === 1) {
+                turnStone.className = 'stone-preview black-stone';
+                turnText.textContent = '흑';
+            } else {
+                turnStone.className = 'stone-preview white-stone';
+                turnText.textContent = '백';
+            }
+            
+            document.getElementById('blackCaptures').textContent = gameData.blackCaptures;
+            document.getElementById('whiteCaptures').textContent = gameData.whiteCaptures;
+            
+            drawBoard();
+        }
+
+        // 돌 놓기
+        async function placeStone(row, col) {
+            if (!gameData || gameData.status !== 'playing') return false;
+            if (gameData.currentPlayer !== myColor) {
+                alert('당신의 차례가 아닙니다!');
+                return false;
+            }
+            if (gameData.board[row][col] !== 0) return false;
+            
+            const newBoard = gameData.board.map(r => [...r]);
+            newBoard[row][col] = myColor;
+            
+            // 돌 잡기 로직
+            const opponent = myColor === 1 ? 2 : 1;
+            let captured = 0;
+            
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    if (newBoard[r][c] === opponent && !hasLiberties(newBoard, r, c, opponent)) {
+                        newBoard[r][c] = 0;
+                        captured++;
+                    }
+                }
+            }
+            
+            // 자살수 체크
+            if (captured === 0 && !hasLiberties(newBoard, row, col, myColor)) {
+                alert('자살수는 놓을 수 없습니다!');
+                return false;
+            }
+            
+            const updates = {
+                board: newBoard,
+                currentPlayer: opponent,
+                passCount: 0
+            };
+            
+            if (myColor === 1) {
+                updates.blackCaptures = gameData.blackCaptures + captured;
+            } else {
+                updates.whiteCaptures = gameData.whiteCaptures + captured;
+            }
+            
+            await update(ref(database, 'games/' + currentRoomCode), updates);
+            return true;
+        }
+
+        // 활로 체크
+        function hasLiberties(board, row, col, player) {
+            const visited = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(false));
+            
+            function checkGroup(r, c) {
+                if (r < 0 || r >= BOARD_SIZE || c < 0 || c >= BOARD_SIZE) return false;
+                if (visited[r][c]) return false;
+                if (board[r][c] === 0) return true;
+                if (board[r][c] !== player) return false;
+                
+                visited[r][c] = true;
+                return checkGroup(r-1, c) || checkGroup(r+1, c) || 
+                       checkGroup(r, c-1) || checkGroup(r, c+1);
+            }
+            
+            return checkGroup(row, col);
+        }
+
+        // 패스
+        window.pass = async function() {
+            if (!gameData || gameData.status !== 'playing') return;
+            if (gameData.currentPlayer !== myColor) {
+                alert('당신의 차례가 아닙니다!');
+                return;
+            }
+            
+            const newPassCount = gameData.passCount + 1;
+            
+            if (newPassCount === 2) {
+                const score = calculateScore(gameData.board, gameData.blackCaptures, gameData.whiteCaptures);
+                alert(`게임 종료!\n\n흑: ${score.black.toFixed(1)}점\n백: ${score.white.toFixed(1)}점\n\n${score.black > score.white ? '흑' : '백'} 승리!`);
+                await remove(ref(database, 'games/' + currentRoomCode));
+                leaveRoom();
+                return;
+            }
+            
+            await update(ref(database, 'games/' + currentRoomCode), {
+                currentPlayer: myColor === 1 ? 2 : 1,
+                passCount: newPassCount
+            });
+        };
+
+        // 점수 계산
+        function calculateScore(board, blackCaptures, whiteCaptures) {
+            let black = blackCaptures;
+            let white = whiteCaptures + 6.5; // 덤
+            
+            for (let row = 0; row < BOARD_SIZE; row++) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    if (board[row][col] === 1) black++;
+                    if (board[row][col] === 2) white++;
+                }
+            }
+            
+            return { black, white };
+        }
+
+        // 방 나가기
+        window.leaveRoom = async function() {
+            if (currentRoomCode) {
+                await remove(ref(database, 'games/' + currentRoomCode));
+            }
+            currentRoomCode = null;
+            myColor = null;
+            gameData = null;
+            showLobbyScreen();
+        };
+
+        // 화면 전환
+        function showGameScreen() {
+            document.getElementById('lobbyScreen').classList.add('hidden');
+            document.getElementById('gameScreen').classList.remove('hidden');
+            resizeCanvas();
+        }
+
+        function showLobbyScreen() {
+            document.getElementById('lobbyScreen').classList.remove('hidden');
+            document.getElementById('gameScreen').classList.add('hidden');
+        }
+
+        // 캔버스 크기 조정
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            const size = container.offsetWidth;
+            canvas.width = size;
+            canvas.height = size;
+            drawBoard();
+        }
+
+        // 바둑판 그리기
+        function drawBoard() {
+            if (!gameData) return;
+            
+            const size = canvas.width;
+            const cellSize = size / (BOARD_SIZE + 1);
+            const padding = cellSize;
+            
+            ctx.fillStyle = '#dcb35c';
+            ctx.fillRect(0, 0, size, size);
+            
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 1;
+            
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                ctx.beginPath();
+                ctx.moveTo(padding + i * cellSize, padding);
+                ctx.lineTo(padding + i * cellSize, size - padding);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(padding, padding + i * cellSize);
+                ctx.lineTo(size - padding, padding + i * cellSize);
+                ctx.stroke();
+            }
+            
+            const starPoints = [3, 6, 9];
+            starPoints.forEach(row => {
+                starPoints.forEach(col => {
+                    ctx.beginPath();
+                    ctx.arc(padding + col * cellSize, padding + row * cellSize, 4, 0, 2 * Math.PI);
+                    ctx.fillStyle = '#000';
+                    ctx.fill();
+                });
+            });
+            
+            for (let row = 0; row < BOARD_SIZE; row++) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    if (gameData.board[row][col] !== 0) {
+                        drawStone(row, col, gameData.board[row][col]);
+                    }
+                }
+            }
+        }
+
+        // 돌 그리기
+        function drawStone(row, col, player) {
+            const size = canvas.width;
+            const cellSize = size / (BOARD_SIZE + 1);
+            const padding = cellSize;
+            const x = padding + col * cellSize;
+            const y = padding + row * cellSize;
+            const radius = cellSize * 0.45;
+            
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, 2 * Math.PI);
+            
+            if (player === 1) {
+                const gradient = ctx.createRadialGradient(x - radius/3, y - radius/3, radius/10, x, y, radius);
+                gradient.addColorStop(0, '#666');
+                gradient.addColorStop(1, '#000');
+                ctx.fillStyle = gradient;
+            } else {
+                const gradient = ctx.createRadialGradient(x - radius/3, y - radius/3, radius/10, x, y, radius);
+                gradient.addColorStop(0, '#fff');
+                gradient.addColorStop(1, '#ddd');
+                ctx.fillStyle = gradient;
+            }
+            
+            ctx.fill();
+            ctx.strokeStyle = player === 1 ? '#000' : '#999';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+
+        // 클릭/터치 이벤트
+        function getPosition(event) {
+            const rect = canvas.getBoundingClientRect();
+            const x = (event.clientX || event.touches[0].clientX) - rect.left;
+            const y = (event.clientY || event.touches[0].clientY) - rect.top;
+            
+            const size = canvas.width;
+            const cellSize = size / (BOARD_SIZE + 1);
+            const padding = cellSize;
+            
+            const col = Math.round((x - padding) / cellSize);
+            const row = Math.round((y - padding) / cellSize);
+            
+            if (row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE) {
+                return { row, col };
+            }
+            return null;
+        }
+
+        canvas.addEventListener('click', (e) => {
+            const pos = getPosition(e);
+            if (pos) {
+                placeStone(pos.row, pos.col);
+            }
+        });
+        
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const pos = getPosition(e);
+            if (pos) {
+                placeStone(pos.row, pos.col);
+            }
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+    </script>
+</body>
+</html>
